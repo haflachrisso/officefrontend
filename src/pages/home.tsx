@@ -26,11 +26,32 @@ const fetchController = async (source: number): Promise<Controller> => {
         return controllerArr;
 }
 
+const controllerAliveCheck = async (): Promise<Number[]> => {
+    let idsActive: Number[] = [];
+    const lastSixTemp: Temperature[] = await (await fetch('http://192.168.1.147:8080/api/tempMeasurements/6')).json();
+    const ids = lastSixTemp.map(t => t.controllerId);
+    const uniqueControllers = [...new Set(ids)];
+    const sortReverse = lastSixTemp.sort((a,b) => b.id - a.id);
+    const nowMilli = new Date(new Date().toUTCString()).getTime();
+    console.log(nowMilli);
+    uniqueControllers.forEach(c => {
+        const lastPost = sortReverse.find(t => t.controllerId === c);
+        if(typeof lastPost !== 'undefined') {
+            const timedif = nowMilli - new Date(lastPost.createdAt).getTime();
+            console.log(c, timedif);
+            if(!(timedif > 240000)) {
+                idsActive.push(c);
+            }
+        }
+    })
+
+    return idsActive;
+}
+
 const formatDateString = (dateStr: string): string => {
     const dateTimeSplit = dateStr.split('T');
     const date = dateTimeSplit[0];
     const time = dateTimeSplit[1].split('.')[0];
-    console.log(time);
     const dateSplit = date.split('-');
     const year = dateSplit[0];
     const month = dateSplit[1];
@@ -96,16 +117,19 @@ const Home: Component = () => {
     const [currentHumData, {refetch: refetchHum}] = createResource<Humidity>(fetchLastHum);
     const [controllersData] = createResource<Controller[]>(fetchControllers);
     const [controllerData] = createResource(controllerId, fetchController)
+    const [controllersAlive, {refetch: refetchAlive}] = createResource(controllerAliveCheck)
     const [tempString, setTempString] = createSignal('No Temp');
     const [fahrenheit, setFahrenheit] = createSignal(false);
     // read value
     createEffect(() => {
       setTempString(fahrenheitOrCelcius(currentTempData()?.tempCelcius ?? 0, fahrenheit()))
     });
-    
+
+    createEffect(() => console.log(controllersAlive()));
     const refetchData = () => {
         refetchTemp();
         refetchHum();
+        refetchAlive()
         setTimeout(() => refetchData(), 30000);
     };
 
@@ -140,7 +164,7 @@ const Home: Component = () => {
             </div>
             <p class="text-3xl text-bold mt-8">Controllers</p>
             <div class="flex space-x-4">
-                {controllersData()?.map(c => <ControllerItem onClick={() => setControllerId(c.id)} data={c} activeController={() => controllerId()} />)}
+                {controllersData()?.map(c => <ControllerItem onClick={() => setControllerId(c.id)} data={c} activeController={() => controllerId()} alive={() => controllersAlive()?.includes(c.id) ?? false} />)}
             </div>
             <p class="text-xl text-bold mt-4 mb-2">Last 50 datapoints</p>
             <div class='flex space-x-2'>

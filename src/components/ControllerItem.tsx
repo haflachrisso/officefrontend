@@ -6,8 +6,9 @@ interface Props {
     data: Controller;
     onClick(): void;
     activeController(): number;
+    alive(): boolean;
 }
-const ControllerItem: Component<Props> = ({data,onClick, activeController}) => {
+const ControllerItem: Component<Props> = ({data,onClick, activeController, alive}) => {
 
     console.log(activeController() === data.id)
     return (
@@ -15,7 +16,7 @@ const ControllerItem: Component<Props> = ({data,onClick, activeController}) => {
             'border-black': activeController() === data.id,
             'border-transparent': activeController() !== data.id,
         })}>
-            <h2 class="text-2xl text-bold">📡 {data.name}</h2>
+            <h2 class="text-2xl text-bold">{alive() ? '📡' : '❌'} {data.name}</h2>
             <p class="text-lg">{data.location}</p>
         </div>
     )
